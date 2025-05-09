@@ -40,7 +40,7 @@ Chemin/Path
 
  
 
-Ligne 206 
+/!\ Ligne 206 /!\
 
 CHEMIN = "C:/Users/SESA817224/Documents/fichier comtrade/COMTRADE 2013/fichier img"  #penser à changer le chemin d'acces 
 
