@@ -6,17 +6,10 @@ import comtrade
 import tkinter as tk
 from tkinter import filedialog
 from fpdf import FPDF
-
 import os
 print(os.getcwd())
 
-
-#from comtrade import Comtrade
-
-#from scipy.interpolate import make_interp_spline
-
 # ///////////////////CHEMIN///////////////////  
-
 def get_file_path():
     # Crée une fenêtre Tkinter
     root = tk.Tk()
@@ -30,18 +23,10 @@ def get_file_path():
     cfg_file = nom_variable+"CFG"
    
     return (cfg_file,data_file)
-
 # Exécute la fonction et affiche le chemin d'accès
-
-
 file = get_file_path()
 cfg_file = file[0]
 dat_file = file[1]
-
-
-
-
-
 
 """
  # Read the CFG file and remove BOM if present
@@ -52,13 +37,9 @@ with open(cfg_file, 'r', encoding='utf-8-sig') as file:
 with open(cfg_file, 'w', encoding='utf-8') as file:
     file.write(cfg_content)
 """
-
-
 # Create a Comtrade object and load the files
 rec = comtrade.Comtrade()
 rec.load(cfg_file, dat_file)
-
-
 print("Trigger time = {}s".format(rec.trigger_time))
 #Déclaration des variables
 date = rec.start_timestamp
@@ -70,7 +51,6 @@ sampling_rate = rec.cfg.sample_rates
 nbr_analogique = rec.analog_count
 nbr_binaire = rec.status_count
 temps = []
-
 print(f"Year: {rec.station_name}")
 print(f"Total Channels: {rec.total_samples}")
 print(f"La frequence est de {frequence} Hz") 
@@ -82,7 +62,6 @@ print(f"debut de l'enregistrement {sampling_rate[0][0]} ms")
 print(f"fin de l'enregistrement {sampling_rate[0][1]} ms")
 print(f"Nombre de canaux analogiques : {nbr_analogique}")
 print(f"Nombre de canaux binaire : {nbr_binaire}")
-
 
 print("/////////////////////////////////////////////////////")
 
@@ -108,10 +87,7 @@ def recup_AB():
 def rapportPri_Sec():
     liste= []
     for i,analog_channel in enumerate(rec.cfg.analog_channels):
-        print(analog_channel.primary,"primaire")
-        print(analog_channel.secondary,"secondary")
         liste.append(analog_channel.primary/analog_channel.secondary)
-        print(liste,"L100")
     return liste
 
 
@@ -126,11 +102,8 @@ liste_div = rapportPri_Sec()
 
 def brut_secondaire(listeAB,data):
     for coef in listeAB:
-        print(coef[1])
         a =  coef[0]
         b = coef[1]
-        print(a)
-        print(b)
         for liste in data:
            
             for element in liste:
@@ -139,15 +112,7 @@ def brut_secondaire(listeAB,data):
     return data     
 temp = (brut_secondaire(div,liste_data)) #changer div par la liste des coef a b
 
-"""
-print(len(temp),'temp')
-print(div,"div ici")
-print(rapportPri_Sec())
-"""
-
 def transfo_primaire(analog,liste_div):
- 
-
     for analo in rec.cfg.analog_channels:
         signal_type = analo.pors
         if signal_type == "S": 
@@ -156,9 +121,6 @@ def transfo_primaire(analog,liste_div):
 
     return analogique_prime
                    
-
-                    
-
 temp2 = transfo_primaire(temp,liste_div)
 
 def creer_repertoire_ganalog(chemin_dossier):
@@ -170,8 +132,6 @@ def creer_repertoire_ganalog(chemin_dossier):
         print(f"Une erreur est survenue lors de la creation du dossier.")
     return chemin_dossier
 
-#print(creer_repertoire_ganalog(r"C:\Users\SESA817224\Documents\fichier comtrade\COMTRADE 2013\DOSSIER GRAPHIQUE"))
-
 def graph_analogique(x,y):
     # Étape 3 : zoom sur un intervalle spécifique (par exemple 0 à 1)
     plt.figure()
@@ -182,9 +142,7 @@ def graph_analogique(x,y):
     #plt.clf()# Clear 
 
 def save_graph_analog(temp,liste_data,path):
-    
     a = creer_repertoire_ganalog(path)
-
     chemin_images = []
     #output_folder = "chemin/vers/votre/dossier"
     if not os.path.exists(path):
@@ -192,7 +150,6 @@ def save_graph_analog(temp,liste_data,path):
 
     for i in range(len(liste_data)):
         
-    
         graph_analogique(temp,liste_data[i])
         nom_fichier = f"{path}/graphique{i}.png"
         chemin_images.append(nom_fichier)
@@ -200,18 +157,7 @@ def save_graph_analog(temp,liste_data,path):
         plt.close()
 
     return chemin_images
-        
 
-
-CHEMIN = "C:/Users/SESA817224/Documents/fichier comtrade/COMTRADE 2013/fichier img"  #penser à changer le chemin d'acces
-
-
-print(save_graph_analog(temps,temp2,CHEMIN))
-
-chemin_image = save_graph_analog(temps,temp2,CHEMIN)
-
-
-        
 
 # === 2. CONVERSION EN TABLEAUX NUMPY POUR CALCUL ===
 def fresnel(temps,analogique):
@@ -250,8 +196,40 @@ def fresnel(temps,analogique):
          linewidth=2, label="Signal mesuré")
     ax.set_title("Diagramme de Fresnel liste -> analogique0")
     ax.legend()
-    plt.show()
+    #plt.show()
+        
 
+def parcoursFresnel(temps,liste_data,path):
+    chemin_images = []
+    if not os.path.exists(path):
+        os.makedirs(path)
+    i=0
+    for sousListe in liste_data:
+        i+=1
+        fresnel(temps,sousListe)
+        nom_fichier = f"{path}/graphiqueFresnel{i}.png"
+        chemin_images.append(nom_fichier)
+        plt.savefig(nom_fichier)
+        plt.close()
+
+    return chemin_images
+      
+
+#CHEMIN = "C:/Users/SESA817224/Documents/fichier comtrade/COMTRADE 2013/fichier img"  #penser à changer le chemin d'acces
+CHEMIN2 = "C:/Users/SESA817224/Documents/fichier comtrade/COMTRADE 2013/fichier img"
+
+
+liste_chemin = []#Contient toute les listes des chemin de chaque type de graphique
+
+
+#chemin_image = save_graph_analog(temps,temp2,CHEMIN)
+chemin_analog = save_graph_analog(temps,temp2,CHEMIN2)
+
+#liste_chemin.append(chemin_image)
+liste_chemin.append(chemin_analog)
+liste_chemin.append(parcoursFresnel(temps,temp2,CHEMIN2))
+
+        
 def create_pdf(path,liste_img_path):
     pdf = FPDF()
     pdf.add_page()
@@ -272,43 +250,45 @@ def create_pdf(path,liste_img_path):
     pdf.cell(200, 10, txt=f"Nombre de canaux analogiques :  {nbr_analogique}" ,ln=True)
     pdf.cell(200, 10, txt=f"Nombre de canaux binaire :  {nbr_binaire}" ,ln=True)
 
-    x = 10
-    y = 130
-    w = 100
-    h = 100
-    for elt in liste_img_path:
-        if y + h > pdf.h - 1:# pdf.h is the height of the page
-            pdf.add_page()
-            y = 10# Reset y for the new page
-
-        print(elt,"L 315")  
-        pdf.image(elt,x,y,w)  
-        y += h
+    
+    for sousliste in range(len(liste_img_path)):
         
+        
+        imagePdf(pdf,liste_img_path[sousliste])#pour les graphique basique
+    #imagePdf(pdf,liste_img_path[1])#pour les graphique vectotiel
+    pdf.cell(200, 10, txt=f"annee norme: {rec.station_name}", ln=True)
+    #imagePdf(pdf,liste_img_path)#pour les graphique binaire
 # Check if the next image will fit on the current page
        # pdf.add_page()
     #file_name = "example3.pdf"
     #file_path = os.path.join(os.getcwd(), file_name)
     #pdf.output(file_path)
-    NOM = 'mon_documentTST4.pdf'
+    NOM = 'mon_documentTST5.pdf'
     pdf.output(NOM)
     print(f"The PDF has been saved at: {NOM}")
 
-print(create_pdf(CHEMIN,chemin_image))
-
-
+def imagePdf(pdf,img_path):
+    x = 10
+    y = 130
+    w = 100
+    h = 100
     
+    print(img_path,"imagepdf")
+    for elt in img_path:
+    
+        if y + h > pdf.h - 1:# pdf.h is the height of the page
+            pdf.add_page()
+            y = 5# Reset y for the new page
 
-"""
-print(graph_analogique(temps,analogique1))
-print(graph_analogique(temps,analogique2))
-print(fresnel(temps,analogique1))
-print(fresnel(temps,analogique2))
-"""
+        print(elt,"L 315")  
+        pdf.image(elt,x,y,w)  
+        y += h
+        
+print(create_pdf(CHEMIN2,liste_chemin))
 
+print(liste_chemin[1])
 
-
-
+""""
 def graph_bi(x,y):
     X = np.array(x)
     Y = np.array(y)
@@ -323,7 +303,6 @@ def graph_bi(x,y):
     #plt.xlabel('temps')
     #####plt.ylabel('valeurs analogique')
     #plt.show()
-
 #print(graph_bi(temps,temp2))
-
+"""
 print('fin') 
