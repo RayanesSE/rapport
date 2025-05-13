@@ -1,0 +1,37 @@
+import os
+from fpdf import FPDF
+from PIL import Image
+
+# Charger l'image avec Pillow
+image_path = "C:/Users/SESA817224/Documents/fichier comtrade/COMTRADE 2013/fichier img/graphique2.png"
+image = Image.open(image_path)
+
+# Définir la nouvelle largeur tout en conservant la hauteur
+new_width = 150  # Nouvelle largeur en mm
+new_height = 50  # Hauteur en mm (inchangée)
+
+# Convertir les dimensions en pixels (en supposant 72 DPI)
+dpi = 72
+new_width_px = int(new_width * dpi / 25.4)
+new_height_px = int(new_height * dpi / 25.4)
+
+# Redimensionner l'image avec une interpolation de haute qualité
+image_resized = image.resize((new_width_px, new_height_px), Image.LANCZOS)
+
+# Chemin de sauvegarde de l'image redimensionnée
+output_dir = 'C:/Users/SESA817224/Documents/fichier_comtrade/COMTRADE_2013'
+output_path = os.path.join(output_dir, 'fichier_img_resized.png')
+
+# Créer les répertoires si nécessaire
+os.makedirs(output_dir, exist_ok=True)
+
+# Sauvegarder l'image redimensionnée
+image_resized.save(output_path)
+
+pdf = FPDF()
+pdf.add_page()
+
+# Ajouter l'image redimensionnée au PDF
+pdf.image(output_path, x=10, y=20, w=new_width, h=new_height)
+
+pdf.output('document.pdf')
