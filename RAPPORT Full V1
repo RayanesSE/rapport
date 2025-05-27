@@ -1,0 +1,448 @@
+import numpy as np
+
+import matplotlib.pyplot as plt
+import comtrade 
+#from comtrade import Comtrade
+import tkinter as tk
+from tkinter import filedialog
+from fpdf import FPDF
+import os
+from PIL import Image
+
+from reportlab.lib.pagesizes import A4
+
+
+import fitz# PyMuPDF
+#import svgwrite 
+#import cairosvg
+
+
+from reportlab.graphics import renderPDF
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from svglib.svglib import svg2rlg
+from reportlab.graphics.shapes import Drawing, String
+
+import sys
+sys.stdout.reconfigure(encoding='utf-8')
+
+#from pyComtrade import Comtrade
+#from pycomtrade import Comtrade
+#from pyComtrade import Comtrade
+
+
+ 
+#import pyComtrade
+#print(dir(pyComtrade))
+
+
+
+
+
+print(os.getcwd())
+
+# ///////////////////CHEMIN///////////////////  
+def get_file_path():
+    # Crée une fenêtre Tkinter
+    root = tk.Tk()
+    root.withdraw()  # Cache la fenêtre principale<<<<<<<<<<<<<<<<<<<<<<<
+    # Ouvre l'explorateur de fichiers
+    file_path = filedialog.askopenfilename()
+    type_fichier = file_path[-3:]
+    nom_variable = file_path[:-3]
+    
+    data_file = nom_variable+"DAT"
+    cfg_file = nom_variable+"CFG"
+   
+    return (cfg_file,data_file)
+# Exécute la fonction et affiche le chemin d'accès
+file = get_file_path()
+cfg_file = file[0]
+dat_file = file[1]
+
+"""
+ # Read the CFG file and remove BOM if present
+with open(cfg_file, 'r', encoding='utf-8-sig') as file:
+    cfg_content = file.read()
+
+ # Write the cleaned content back to the file
+with open(cfg_file, 'w', encoding='utf-8') as file:
+    file.write(cfg_content)
+"""
+# Create a Comtrade object and load the files
+rec = comtrade.Comtrade()
+
+
+rec.load(cfg_file,dat_file)
+print("Trigger time = {}s".format(rec.trigger_time))
+#Déclaration des variables
+date = rec.start_timestamp
+trigger_signal_name = '~~~~~~~~~~~~~~ Inconnue ~~~~~~~~~~~~~~'
+rec_number = '~~~~~~~~~~~~~~ Inconnue ~~~~~~~~~~~~~~'
+total_rec_time = rec.time[-1]
+frequence = rec.cfg.frequency
+sampling_rate = rec.cfg.sample_rates
+nbr_analogique = rec.analog_count
+nbr_binaire = rec.status_count
+temps = []
+
+
+
+
+"""# Parcourir les canaux analogiques
+for i in rec.cfg.analog_channels:
+    print(i.a)
+    print(i.b)
+"""
+
+"""
+# Parcourir les canaux analogiques
+for analog in rec.cfg.analog_channels:
+    nom = analog['ch_id'] # Nom du canal (ex: V R-E)
+    unite = analog['units'] # Unité (ex: V)
+    print(f"Nom du signal : {nom}, Unité : {unite}")
+
+    
+
+# Get analog channel names and units
+channel_names = rec.analog_channel_ids
+channel_units = rec.analog_channel_units
+
+# Display the results
+for name, unit in zip(channel_names, channel_units):
+    print(f"Channel: {name}, Unit: {unit}")
+
+"""
+
+print("/////////////////////////////////")
+
+print(f"Year: {rec.station_name}")
+print(f"Total Channels: {rec.total_samples}")
+print(f"La frequence est de {frequence} Hz") 
+print(f"La date et l'heure d'engrensitrement est : {date}")
+#print(f"trigger_signal_name: {trigger_signal_name}")
+print(f"rec_number: {rec_number}")
+print(f"total_rec_time: {total_rec_time}")
+print(f"debut de l'enregistrement {sampling_rate[0][0]} ms")
+print(f"fin de l'enregistrement {sampling_rate[0][1]} ms")
+print(f"Nombre de canaux analogiques : {nbr_analogique}")
+print(f"Nombre de canaux binaire : {nbr_binaire}")
+
+print("/////////////////////////////////")
+
+
+
+def mise_en_liste_analog(nbr_analog):
+    """ recupere les valeurs analog brut ADC """
+    liste_data = []
+    temps = []
+    for lanalog in range(nbr_analog):
+        liste_data.append([])
+        for i in range(len(rec.time)):
+            temps.append(rec.time[i])
+            liste_data[lanalog].append(rec.analog[lanalog][i])
+    return liste_data
+
+def recup_AB():  
+    liste_ab = []
+    for i in rec.cfg.analog_channels:
+        liste_ab.append((i.a,i.b))
+    return liste_ab
+
+def rapportPri_Sec():
+    liste= []
+    for i,analog_channel in enumerate(rec.cfg.analog_channels):
+        liste.append(analog_channel.primary/analog_channel.secondary)
+    return liste
+
+
+
+liste_data= mise_en_liste_analog(nbr_analogique)
+analogique0=liste_data[0]
+temps = rec.time
+div = recup_AB() #changer div par la liste des coef a b
+
+liste_div = rapportPri_Sec()
+
+
+def brut_secondaire(listeAB,data):
+    for coef in listeAB:
+        a =  coef[0]
+        b = coef[1]
+        for liste in data:
+           
+            for element in liste:
+               element = element*a +b
+               
+    return data     
+temp = (brut_secondaire(div,liste_data)) #changer div par la liste des coef a b
+
+def transfo_primaire(analog,liste_div):
+    for analo in rec.cfg.analog_channels:
+        signal_type = analo.pors
+        if signal_type == "S": 
+            for sousliste in range(len(analog)):  
+                analogique_prime =[[element * liste_div[i] for element in analog[i]] for i in range(len(analog))]
+
+    return analogique_prime
+                   
+temp2 = transfo_primaire(temp,liste_div)
+
+
+def creer_repertoire_ganalog(chemin_dossier):
+    try:
+        os.makedirs(chemin_dossier,exist_ok=True)
+        print(f"le dossier{chemin_dossier} a été créé avec succès.")
+    except Exception as e:
+        print(f"Une erreur est survenue lors de la creation du dossier.")
+    return chemin_dossier
+
+def graph_analogique(x,y,unit,name):
+    # Étape 3 : zoom sur un intervalle spécifique (par exemple 0 à 1)
+    plt.figure()
+    plt.plot(x,y)
+    plt.xlabel('Temps en s')
+    plt.ylabel(unit)
+    plt.legend([name])
+   
+    
+def liste_uu():
+    liste_uu = []
+    for data in rec.cfg.analog_channels:
+        liste_uu.append(data.uu)
+    return liste_uu
+        #print(type(c.analog_channel_ids))
+
+def save_graph_analog(temp,liste_data,path):
+    a = creer_repertoire_ganalog(path)
+    chemin_images = []
+    #output_folder = "chemin/vers/votre/dossier"
+    if not os.path.exists(path):
+        os.makedirs(path)
+    for i in range(len(liste_data)):
+    
+
+        graph_analogique(temp,liste_data[i],liste_uu()[i],rec.analog_channel_ids[i])
+        nom_fichier = f"{path}/graphique{i}.svg"
+        chemin_images.append(nom_fichier)
+        plt.savefig(nom_fichier,format='svg')
+        plt.close()
+
+    return chemin_images
+
+
+
+
+# === 2. CONVERSION EN TABLEAUX NUMPY POUR CALCUL ===
+def fresnel(temps,analogique,name):
+    t = np.array(temps)
+    y = np.array(analogique)
+    # === 3. CALCUL DE LA FRÉQUENCE D'ÉCHANTILLONNAGE ===
+    dt = t[1] - t[0]  # suppose un échantillonnage régulier
+    f_ech = 1 / dt 
+    # === 4. FFT POUR EXTRAIRE LE PHASOR ===
+    Y = np.fft.fft(y)
+    frequencies = np.fft.fftfreq(len(t), d=1/f_ech)
+    # === 5. NE GARDER QUE LES FRÉQUENCES POSITIVES ===
+    mask_pos = frequencies > 0
+    frequencies = frequencies[mask_pos]
+    Y = Y[mask_pos]
+
+    # === 6. TROUVER LA FRÉQUENCE PRINCIPALE ===
+    index_max = np.argmax(np.abs(Y))
+    freq_fondamentale = frequencies[index_max]
+    phasor = Y[index_max] / len(t)
+
+    # === 7. CALCUL DE L’AMPLITUDE ET DE LA PHASE ===
+    amplitude = 2 * np.abs(phasor)  # facteur 2 car unilatéral
+    phase_rad = np.angle(phasor)
+    phase_deg = np.rad2deg(phase_rad)
+
+    # === 8. AFFICHAGE DES RÉSULTATS ===
+    """
+        print(f"Fréquence fondamentale : {freq_fondamentale:.2f} Hz")
+        print(f"Amplitude : {amplitude:.2f} V")
+        print(f"Phase : {phase_deg:.2f}°") 
+    """
+    # === 9. DIAGRAMME DE FRESNEL ===
+    fig, ax = plt.subplots(subplot_kw={'projection': 'polar'})
+    ax.arrow(phase_rad, 0, 0, amplitude,
+         head_width=0.1, head_length=amplitude*0.05,
+         linewidth=2, label="Signal mesuré")
+    ax.set_title("Diagramme de Fresnel liste -> analogique0")
+    ax.set_title(name)
+    ax.legend()
+
+    return ["Frequence :"+str(freq_fondamentale)+"Hz","Amplitude :"+str(amplitude)+"V","Phase :"+str(phase_deg)+"°"]  
+
+    #plt.show ()
+
+
+def parcoursFresnel(temps,liste_data,path):
+
+    chemin_images = []
+    liste_inf =  []
+
+    if not os.path.exists(path):
+        os.makedirs(path)
+    i=0
+    for sousListe in liste_data:                
+        fresnel(temps,sousListe,rec.analog_channel_ids[i])
+        liste_inf.append(fresnel(temps,sousListe,rec.analog_channel_ids[i]))
+        i+=1
+        nom_fichier = f"{path}/graphiqueFresnel{i}.svg"#.svg
+        chemin_images.append(nom_fichier)
+        plt.savefig(nom_fichier,format='svg')
+        plt.close()
+
+    return chemin_images,liste_inf
+      
+
+#CHEMIN = "C:/Users/SESA817224/Documents/fichier comtrade/COMTRADE 2013/fichier img"  #penser à changer le chemin d'acces
+CHEMIN2 = "C:/Users/SESA817224/Documents/fichier comtrade/COMTRADE 2013/fichier img"
+
+
+liste_chemin = []#Contient toute les listes des chemin de chaque type de graphique
+infoFresnel = parcoursFresnel(temps,temp2,CHEMIN2)[1]
+
+#chemin_image = save_graph_analog(temps,temp2,CHEMIN)
+chemin_analog = save_graph_analog(temps,temp2,CHEMIN2)
+
+
+#liste_chemin.append(chemin_image)
+liste_chemin.append(chemin_analog)
+liste_chemin.append(parcoursFresnel(temps,temp2,CHEMIN2)[0])
+
+
+
+
+print(infoFresnel)
+
+def create_pdf_with_svg_and_text(path, liste_img_path, infos, infoFresnel):
+    print(infoFresnel)
+    pdf_path = os.path.join(path, "mon_documentTST5.pdf")
+    c = canvas.Canvas(pdf_path, pagesize=A4)
+    page_width, page_height = A4
+
+    margin_x = 40
+    margin_y = 40
+    x_spacing = 20
+    y_spacing = 30
+    img_max_width = 180
+    img_max_height = 120
+    y_img = 500
+
+    # Ajout du texte en haut de la première page
+    y_txt = page_height - margin_y
+    for info in infos:
+        c.drawString(margin_x, y_txt, info)
+        y_txt -= 18
+
+# Préparation des images à afficher
+    images = []
+    for sousliste in liste_img_path:
+        images.extend(sousliste)
+
+    images_per_row = 3# 3 images par ligne
+    x_img = margin_x
+    img_count = 0
+    for idx, svg in enumerate(images):
+        if os.path.exists(svg):
+            drawing = svg2rlg(svg)
+            scale_x = img_max_width / drawing.width
+            scale_y = img_max_height / drawing.height
+            scale = min(scale_x, scale_y, 1.0)
+            drawing.scale(scale, scale)
+            drawing.width *= scale
+            drawing.height *= scale
+
+            renderPDF.draw(drawing, c, x_img, y_img)
+            x_img += drawing.width + x_spacing
+            img_count += 1
+            if img_count % images_per_row == 0:
+                x_img = margin_x
+                y_img -= img_max_height + y_spacing
+
+            if y_img < margin_y + img_max_height:
+                c.showPage()
+                y_img = page_height - margin_y - img_max_height
+                x_img = margin_x
+
+  
+
+    # Ajout des informations Fresnel
+    Fresnel_per_row = 3
+    txt_Fresnel = 0
+    x_start = x_img #margin_x
+    y_start = y_img #- img_max_height - y_spacing
+    col_width = 95
+    x_spacing = 10  # Adjust as needed
+    y_spacing = 18  # Adjust as needed
+    print(type(infoFresnel))
+    infoFresnel = np.array(infoFresnel)
+    for sousliste in infoFresnel.T:
+        for idx, inf in enumerate(sousliste):
+            x = x_start + (idx % Fresnel_per_row) * col_width
+            #print(inf)
+            c.drawString(x-16, y_start, str(inf),)
+            txt_Fresnel += 1
+
+        
+            if txt_Fresnel % Fresnel_per_row == 0:
+                x_start = margin_x
+                y_start -= y_spacing
+
+            else:
+                x_start += col_width
+        
+        if y_start < margin_y + y_spacing:
+                c.showPage()
+                y_start = page_height - margin_y - y_spacing
+                x_start = margin_x
+
+    
+    # Reset x_start for the next row of infoFresnel
+    x_start = x_img
+    y_start -= y_spacing
+
+    c.save()
+
+infos = [
+    f"annee norme: {rec.station_name}",
+    f"Total Channels: {frequence}",
+    f"La frequence est de: {rec.total_samples}",
+    f"La date et l'heure d'engrensitrement est : {date}",
+    f"rec_number: {rec_number}",
+    f"total_rec_time: {total_rec_time}",
+    f"debut de l'enregistrement: {sampling_rate[0][0]}",
+    f"fin de l'enregistrement : {sampling_rate[0][1]}",
+    f"Nombre de canaux analogiques : {nbr_analogique}",
+    f"Nombre de canaux binaire : {nbr_binaire}"
+]
+
+print(create_pdf_with_svg_and_text(CHEMIN2, liste_chemin, infos,infoFresnel))
+print('fin') 
+
+
+
+
+
+
+
+"""
+def graph_bi(x,y):
+    X = np.array(x)
+    Y = np.array(y)
+    # Create a mask for positive values
+    positive_mask = Y > 0
+
+    # Use the mask to select only positive values
+    axey = Y[positive_mask]
+    print(axey)
+    plt.figure()
+    #####plt.plot(len(axey),axey)
+    #plt.xlabel('temps')
+    #####plt.ylabel('valeurs analogique')
+    #plt.show()
+#print(graph_bi(temps,temp2))
+"""
